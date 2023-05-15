@@ -4,7 +4,7 @@
 
 const bcrypt = require("bcrypt");
 const { BCRYPT_WORK_FACTOR } = require("../config")
-const { NotFoundError } = require("../expressError");
+const { NotFoundError, UnauthorizedError } = require("../expressError");
 const db = require("../db");
 
 /** User of the site. */
@@ -46,7 +46,7 @@ class User {
     const user = result.rows[0];
 
     if (!user) {
-      throw new NotFoundError(`User: ${username} was not found.`);
+      throw new UnauthorizedError();
     }
 
     return await bcrypt.compare(password, user.password);
