@@ -16,8 +16,7 @@ class User {
    */
 
   static async register({ username, password, first_name, last_name, phone }) {
-    const hashedPassword = await bcrypt.hash(
-      password, BCRYPT_WORK_FACTOR);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_WORK_FACTOR);
 
     const result = await db.query(
       `INSERT INTO users (username,
@@ -43,10 +42,11 @@ class User {
          FROM users
          WHERE username = $1`,
       [username]);
+
     const user = result.rows[0];
 
     if (!user) {
-      throw new NotFoundError("No such user found.");
+      throw new NotFoundError(`User: ${username} was not found.`);
     }
 
     return await bcrypt.compare(password, user.password);
@@ -64,7 +64,7 @@ class User {
     );
 
     if (!result.rows[0]) {
-      throw new NotFoundError("User was not found.");
+      throw new NotFoundError(`User: ${username} was not found.`);
     }
   }
 
@@ -74,8 +74,11 @@ class User {
   static async all() {
     const results = await db.query(
       `SELECT username, first_name, last_name
-           FROM users`);
+           FROM users
+           ORDER BY username DESC`);
+
     const users = results.rows;
+
     return users;
   }
 
@@ -112,25 +115,34 @@ class User {
    */
 
   static async messagesFrom(username) {
-    const mResults = await db.query(
-      `SELECT id, to_username AS to_user, body, sent_at, read_at
-        FROM messages
-        WHERE from_username = $1`, [username]);
+    const results = await db.query(
+      `SELECT m.id, m.to_username AS to_user, m.body, m.sent_at, m.read_at,
+        u.first_name, u.last_name, u.phone
+      FROM messages AS m
+      JOIN users AS u
+        ON m.to_username = u.username
+      WHERE m.from_username = $1
+      ORDER BY m.id`,
+      [username]
+    )
 
-    const messages = mResults.rows;
+    const messages = results.rows
+    if (!messages) throw new NotFoundError(`No messages sent from user: ${username}`)
 
-    for (let message of messages) {
-      let uResults = await db.query(
-        `SELECT username, first_name, last_name, phone
-          FROM users
-          WHERE username = $1`, [message.to_user]);
+    const resultMessages = messages.map((m) => ({
+      'id': m.id,
+      'to_user': {
+        'username': m.to_user,
+        'first_name': m.first_name,
+        'last_name': m.last_name,
+        'phone': m.phone,
+      },
+      'body': m.body,
+      'sent_at': m.sent_at,
+      'read_at': m.read_at
+    }));
 
-      let to_user = uResults.rows[0];
-
-      message.to_user = to_user;
-    }
-
-    return messages;
+    return resultMessages;
   }
 
   /** Return messages to this user.
@@ -142,25 +154,34 @@ class User {
    */
 
   static async messagesTo(username) {
-    const mResults = await db.query(
-      `SELECT id, from_username AS from_user, body, sent_at, read_at
-        FROM messages
-        WHERE to_username = $1`, [username]);
+    const results = await db.query(
+      `SELECT m.id, m.from_username AS from_user, m.body, m.sent_at, m.read_at,
+        u.first_name, u.last_name, u.phone
+      FROM messages AS m
+      JOIN users AS u
+        ON m.from_username = u.username
+      WHERE m.to_username = $1
+      ORDER BY m.id`,
+      [username]
+    )
 
-    const messages = mResults.rows;
+    const messages = results.rows
+    if (!messages) throw new NotFoundError(`No messages sent to user: ${username}`)
 
-    for (let message of messages) {
-      let uResults = await db.query(
-        `SELECT username, first_name, last_name, phone
-          FROM users
-          WHERE username = $1`, [message.from_user]);
+    const resultMessages = messages.map((m) => ({
+      'id': m.id,
+      'from_user': {
+        'username': m.from_user,
+        'first_name': m.first_name,
+        'last_name': m.last_name,
+        'phone': m.phone,
+      },
+      'body': m.body,
+      'sent_at': m.sent_at,
+      'read_at': m.read_at
+    }));
 
-      let from_user = uResults.rows[0];
-
-      message.from_user = from_user;
-    }
-
-    return messages;
+    return resultMessages;
   }
 }
 
