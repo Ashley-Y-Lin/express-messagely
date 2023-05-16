@@ -64,7 +64,7 @@ class User {
     );
 
     if (!result.rows[0]) {
-      throw new NotFoundError(`User: ${username} was not found.`);
+      throw new UnauthorizedError();
     }
   }
 
@@ -100,7 +100,7 @@ class User {
     const user = results.rows[0];
 
     if (!user) {
-      throw new NotFoundError("No such user exists.");
+      throw new UnauthorizedError();
     }
 
     return user;

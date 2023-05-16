@@ -2,7 +2,7 @@
 
 const Router = require("express").Router;
 const Message = require("../models/message");
-const {UnauthorizedError} = require("../expressError")
+const { UnauthorizedError } = require("../expressError");
 const { authenticateJWT, ensureLoggedIn, ensureCorrectUser } = require("../middleware/auth");
 
 const router = new Router();
@@ -24,16 +24,13 @@ router.get("/:id", ensureLoggedIn,
   async function (req, res, next) {
     const mId = req.params.id;
     const username = res.locals.user.username;
-    console.log("current username=  ", username);
-
-
     const message = await Message.get(mId);
 
-    if (username !== message.from_user.username || username !== message.to_user.username) {
-      throw new UnauthorizedError();
+    if (username === message.from_user.username || username === message.to_user.username) {
+      return res.json({ message });
     }
 
-    return res.json({ message });
+    throw new UnauthorizedError();
   });
 
 
@@ -64,18 +61,17 @@ router.post("/", ensureLoggedIn,
  **/
 
 router.post("/:id/read", ensureLoggedIn,
-  async function (req, res, next) {
+async function (req, res, next) {
     const mId = req.params.id;
     const username = res.locals.user.username;
-    let mRead;
 
     const message = await Message.get(mId);
 
     if (username !== message.to_user.username) {
       throw new UnauthorizedError();
-    } else {
-      mRead = await Message.markRead(mId);
     }
+
+    const mRead = await Message.markRead(mId);
 
     return res.json({ message: mRead });
   });
